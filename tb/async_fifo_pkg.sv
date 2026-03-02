@@ -57,8 +57,14 @@ package async_fifo_pkg;
   class fifo_env_cfg extends uvm_object;
     `uvm_object_utils(fifo_env_cfg)
 
+    // Used by virtual sequences to determine stimulus length
     int unsigned num_ops = 2000;
+
+    // 0 => drivers will WAIT for !full / !empty before asserting enables
+    // 1 => drivers may still assert enables even when full/empty (negative testing)
     bit allow_illegal_attempts = 0;
+
+    // (Optional knob; in this version SVA enable is controlled by plusarg in top_tb)
     bit enable_assertions = 1;
 
     function new(string name="fifo_env_cfg");
@@ -102,17 +108,28 @@ package async_fifo_pkg;
       forever begin
         seq_item_port.get_next_item(tr);
 
+        // Optional idle insertion
         repeat (tr.idle_cycles) begin
           vif.cb_w.w_en <= 1'b0;
           @(vif.cb_w);
         end
 
         if (tr.op == OP_WRITE) begin
+          // If illegal attempts are not allowed, wait until FIFO is not full
+          if (!cfg.allow_illegal_attempts) begin
+            while (vif.cb_w.wfull) begin
+              vif.cb_w.w_en <= 1'b0;
+              @(vif.cb_w);
+            end
+          end
+
           vif.cb_w.wdata <= tr.data;
           vif.cb_w.w_en  <= 1'b1;
           @(vif.cb_w);
           vif.cb_w.w_en  <= 1'b0;
-        end else begin
+        end
+        else begin
+          // OP_READ/OP_IDLE do nothing on write interface
           vif.cb_w.w_en <= 1'b0;
           @(vif.cb_w);
         end
@@ -147,6 +164,7 @@ package async_fifo_pkg;
       wait (vif.wrst_n === 1'b1);
       forever begin
         @(posedge vif.wclk);
+        // Only count ACCEPTED writes (i.e., write handshake when not full)
         if (vif.w_en && !vif.wfull) begin
           obs = fifo_write_obs::type_id::create("obs");
           obs.data = vif.wdata;
@@ -213,16 +231,27 @@ package async_fifo_pkg;
       forever begin
         seq_item_port.get_next_item(tr);
 
+        // Optional idle insertion
         repeat (tr.idle_cycles) begin
           vif.cb_r.r_en <= 1'b0;
           @(vif.cb_r);
         end
 
         if (tr.op == OP_READ) begin
+          // If illegal attempts are not allowed, wait until FIFO is not empty
+          if (!cfg.allow_illegal_attempts) begin
+            while (vif.cb_r.rempty) begin
+              vif.cb_r.r_en <= 1'b0;
+              @(vif.cb_r);
+            end
+          end
+
           vif.cb_r.r_en <= 1'b1;
           @(vif.cb_r);
           vif.cb_r.r_en <= 1'b0;
-        end else begin
+        end
+        else begin
+          // OP_WRITE/OP_IDLE do nothing on read interface
           vif.cb_r.r_en <= 1'b0;
           @(vif.cb_r);
         end
@@ -257,6 +286,7 @@ package async_fifo_pkg;
       wait (vif.rrst_n === 1'b1);
       forever begin
         @(posedge vif.rclk);
+        // Only count ACCEPTED reads (i.e., read handshake when not empty)
         if (vif.r_en && !vif.rempty) begin
           obs = fifo_read_obs::type_id::create("obs");
           obs.data = vif.rdata;
@@ -363,7 +393,7 @@ package async_fifo_pkg;
     covergroup cg_ops;
       option.per_instance = 1;
 
-      cp_full   : coverpoint vif.wfull { bins no = {0}; bins yes = {1}; }
+      cp_full   : coverpoint vif.wfull  { bins no = {0}; bins yes = {1}; }
       cp_empty  : coverpoint vif.rempty { bins no = {0}; bins yes = {1}; }
 
       cp_fill : coverpoint fill_level {
@@ -423,24 +453,30 @@ package async_fifo_pkg;
     function void build_phase(uvm_phase phase);
       super.build_phase(phase);
 
+      // If test didn’t provide cfg, create defaults
       if (!uvm_config_db#(fifo_env_cfg)::get(this,"","cfg",cfg)) begin
         cfg = fifo_env_cfg::type_id::create("cfg");
         `uvm_info("ENV", "No cfg supplied; using defaults", UVM_LOW)
       end
 
+      // Create components
       w_agent = fifo_w_agent    ::type_id::create("w_agent", this);
       r_agent = fifo_r_agent    ::type_id::create("r_agent", this);
       sb      = fifo_scoreboard ::type_id::create("sb", this);
       cov     = fifo_coverage   ::type_id::create("cov", this);
 
+      // Propagate cfg to all descendants under env
       uvm_config_db#(fifo_env_cfg)::set(this, "*", "cfg", cfg);
     endfunction
 
     function void connect_phase(uvm_phase phase);
       super.connect_phase(phase);
+
+      // Scoreboard connections
       w_agent.mon.ap.connect(sb.w_imp);
       r_agent.mon.ap.connect(sb.r_imp);
 
+      // Coverage connections
       w_agent.mon.ap.connect(cov.w_imp);
       r_agent.mon.ap.connect(cov.r_imp);
     endfunction
@@ -462,17 +498,23 @@ package async_fifo_pkg;
   class fifo_base_vseq extends uvm_sequence #(uvm_sequence_item);
     `uvm_object_utils(fifo_base_vseq)
 
-    fifo_vseqr vseqr_h;
+    fifo_vseqr    vseqr_h;
+    fifo_env_cfg  cfg;
 
     function new(string name="fifo_base_vseq"); super.new(name); endfunction
 
     task pre_body();
-      if (!$cast(vseqr_h, m_sequencer)) `uvm_fatal("VSEQ","No virtual sequencer")
+      if (!$cast(vseqr_h, m_sequencer))
+        `uvm_fatal("VSEQ","No virtual sequencer")
+
+      // Fetch cfg (set by test or env)
+      if (!uvm_config_db#(fifo_env_cfg)::get(null, "*", "cfg", cfg))
+        `uvm_fatal("VSEQ","No fifo_env_cfg found in config_db")
     endtask
   endclass
 
   // ----------------------------
-  // Concrete sequences
+  // Concrete sequences (run on real sequencers)
   // ----------------------------
   class fifo_write_burst_seq extends uvm_sequence #(fifo_item);
     `uvm_object_utils(fifo_write_burst_seq)
@@ -525,7 +567,7 @@ package async_fifo_pkg;
   endclass
 
   // ----------------------------
-  // Virtual sequences
+  // Virtual sequences (coordinate both domains)
   // ----------------------------
   class fifo_smoke_vseq extends fifo_base_vseq;
     `uvm_object_utils(fifo_smoke_vseq)
@@ -535,29 +577,29 @@ package async_fifo_pkg;
       fifo_write_burst_seq wseq;
       fifo_read_burst_seq  rseq;
 
+      // Small deterministic smoke
       wseq = fifo_write_burst_seq::type_id::create("wseq"); wseq.n = 40;
       rseq = fifo_read_burst_seq ::type_id::create("rseq"); rseq.n = 40;
 
-      fork
-        wseq.start(vseqr_h.w_sqr);
-      join
-
-      fork
-        rseq.start(vseqr_h.r_sqr);
-      join
+      // sequential: fill a bit, then drain
+      wseq.start(vseqr_h.w_sqr);
+      rseq.start(vseqr_h.r_sqr);
     endtask
   endclass
 
   class fifo_stress_vseq extends fifo_base_vseq;
     `uvm_object_utils(fifo_stress_vseq)
-    rand int unsigned n = 3000;
     function new(string name="fifo_stress_vseq"); super.new(name); endfunction
 
     task body();
       fifo_random_mix_seq wmix, rmix;
 
-      wmix = fifo_random_mix_seq::type_id::create("wmix"); wmix.n = n;
-      rmix = fifo_random_mix_seq::type_id::create("rmix"); rmix.n = n;
+      wmix = fifo_random_mix_seq::type_id::create("wmix");
+      rmix = fifo_random_mix_seq::type_id::create("rmix");
+
+      // IMPORTANT: now uses cfg.num_ops (so cfg is actually used)
+      wmix.n = cfg.num_ops;
+      rmix.n = cfg.num_ops;
 
       fork
         wmix.start(vseqr_h.w_sqr);
@@ -575,18 +617,14 @@ package async_fifo_pkg;
       fifo_read_burst_seq  rseq;
 
       wseq = fifo_write_burst_seq::type_id::create("wseq");
-      wseq.n = DEPTH * 3;
+      rseq = fifo_read_burst_seq ::type_id::create("rseq");
 
-      rseq = fifo_read_burst_seq::type_id::create("rseq");
+      // Fill & drain aggressively
+      wseq.n = DEPTH * 3;
       rseq.n = DEPTH * 3;
 
-      fork
-        wseq.start(vseqr_h.w_sqr);
-      join
-
-      fork
-        rseq.start(vseqr_h.r_sqr);
-      join
+      wseq.start(vseqr_h.w_sqr);
+      rseq.start(vseqr_h.r_sqr);
     endtask
   endclass
 
@@ -607,21 +645,28 @@ package async_fifo_pkg;
     function void build_phase(uvm_phase phase);
       super.build_phase(phase);
 
-      env   = fifo_env ::type_id::create("env", this);
-      vseqr = fifo_vseqr::type_id::create("vseqr", this);
-
+      // Create cfg FIRST and publish it
       cfg = fifo_env_cfg::type_id::create("cfg");
+
+      // Make cfg visible to env + virtual sequences + everything
+      uvm_config_db#(fifo_env_cfg)::set(this, "*",   "cfg", cfg);
       uvm_config_db#(fifo_env_cfg)::set(this, "env", "cfg", cfg);
 
+      // Create components
+      env   = fifo_env  ::type_id::create("env", this);
+      vseqr = fifo_vseqr::type_id::create("vseqr", this);
+
+      // Get interface
       if (!uvm_config_db#(virtual async_fifo_if#(DATA_WIDTH))::get(this,"","vif",vif))
         `uvm_fatal("NOVIF","test missing vif")
 
+      // Provide vif to env children
       uvm_config_db#(virtual async_fifo_if#(DATA_WIDTH))::set(this, "env.*", "vif", vif);
-      uvm_config_db#(virtual async_fifo_if#(DATA_WIDTH))::set(this, "vseqr", "vif", vif);
     endfunction
 
     function void connect_phase(uvm_phase phase);
       super.connect_phase(phase);
+      // Hook real sequencers into virtual sequencer
       vseqr.w_sqr = env.w_agent.sqr;
       vseqr.r_sqr = env.r_agent.sqr;
     endfunction

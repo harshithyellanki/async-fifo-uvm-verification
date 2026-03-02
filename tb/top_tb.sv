@@ -27,10 +27,21 @@ module top_tb;
     .rempty (vif.rempty)
   );
 
-  async_fifo_sva #(
-    .DATA_WIDTH(DATA_WIDTH),
-    .ADDR_BITS (ADDR_BITS)
-  ) sva_i (.vif(vif));
+  // Optional: Enable/disable SVA via plusarg
+  bit ENABLE_SVA = 1;
+  initial void'($value$plusargs("ENABLE_SVA=%d", ENABLE_SVA));
+
+  generate
+    if (1) begin : gen_sva_block
+      // We conditionally activate assertions by gating instantiation
+      if (ENABLE_SVA) begin : gen_sva_on
+        async_fifo_sva #(
+          .DATA_WIDTH(DATA_WIDTH),
+          .ADDR_BITS (ADDR_BITS)
+        ) sva_i (.vif(vif));
+      end
+    end
+  endgenerate
 
   // ----------------------------
   // Clocks

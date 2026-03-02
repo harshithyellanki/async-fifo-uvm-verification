@@ -12,7 +12,9 @@ package async_fifo_tests_pkg;
       fifo_smoke_vseq vseq;
       phase.raise_objection(this);
 
-      cfg.num_ops = 200;
+      // cfg is now actually consumed by stress vseq; smoke keeps fixed behavior
+      cfg.allow_illegal_attempts = 0;
+
       vseq = fifo_smoke_vseq::type_id::create("vseq");
       vseq.start(vseqr);
 
@@ -28,9 +30,15 @@ package async_fifo_tests_pkg;
       fifo_stress_vseq vseq;
       phase.raise_objection(this);
 
+      // Now meaningful: drives how many ops happen
       cfg.num_ops = 5000;
+
+      // Choose behavior:
+      // 0: wait until !full/!empty before asserting enables (clean traffic)
+      // 1: attempt even when full/empty (negative testing / assertions)
+      cfg.allow_illegal_attempts = 0;
+
       vseq = fifo_stress_vseq::type_id::create("vseq");
-      vseq.n = 5000;
       vseq.start(vseqr);
 
       phase.drop_objection(this);
@@ -44,6 +52,8 @@ package async_fifo_tests_pkg;
     task run_phase(uvm_phase phase);
       fifo_fill_drain_vseq vseq;
       phase.raise_objection(this);
+
+      cfg.allow_illegal_attempts = 0;
 
       vseq = fifo_fill_drain_vseq::type_id::create("vseq");
       vseq.start(vseqr);
@@ -60,8 +70,10 @@ package async_fifo_tests_pkg;
       fifo_stress_vseq vseq;
       phase.raise_objection(this);
 
+      cfg.num_ops = 8000;
+      cfg.allow_illegal_attempts = 0;
+
       vseq = fifo_stress_vseq::type_id::create("vseq");
-      vseq.n = 8000;
       vseq.start(vseqr);
 
       phase.drop_objection(this);
