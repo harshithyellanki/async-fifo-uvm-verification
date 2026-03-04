@@ -82,6 +82,25 @@
 
 // endpackage
 
+// package async_fifo_tests_pkg;
+// import uvm_pkg::*;
+// `include "uvm_macros.svh"
+// import async_fifo_pkg::*;
+
+// class fifo_stress_test extends fifo_base_test;
+//   `uvm_component_utils(fifo_stress_test)
+//   function new(string n, uvm_component p); super.new(n,p); endfunction
+
+//   task run_phase(uvm_phase phase);
+//     fifo_stress_vseq vseq = fifo_stress_vseq::type_id::create("vseq");
+//     phase.raise_objection(this);
+//     vseq.start(vseqr);
+//     phase.drop_objection(this);
+//   endtask
+// endclass
+// endpackage
+
+
 package async_fifo_tests_pkg;
 import uvm_pkg::*;
 `include "uvm_macros.svh"
