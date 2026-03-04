@@ -1,28 +1,32 @@
-# scripts/questa_compile.do
 transcript on
 
-# Create + map work lib (safe if it already exists)
+# 1. Setup Library
 if {[file exists work]} {
-  vmap work work
-} else {
-  vlib work
-  vmap work work
+    vdel -all -lib work
 }
+vlib work
+vmap work work
 
-# Assume you run vsim from PROJECT ROOT (the folder that contains rtl/tb/tests/scripts)
+# 2. Define Paths
 set TB    tb
 set RTL   rtl
 set TESTS tests
 
-# Compile (Tcl line continuation uses "\")
+# 3. Compile Files
+# Order is critical: RTL -> Interface -> Package -> Tests -> Top
 vlog -sv -timescale 1ns/1ps \
-  +incdir+$TB \
-  +incdir+$TESTS \
-  $RTL/async_fifo.sv \
-  $TB/async_fifo_if.sv \
-  $TB/async_fifo_sva.sv \
-  $TB/async_fifo_pkg.sv \
-  $TESTS/async_fifo_tests_pkg.sv \
-  $TB/top_tb.sv
+    +incdir+$TB \
+    +incdir+$TESTS \
+    +define+UVM_NO_DEPRECATED \
+    $RTL/async_fifo.sv \
+    $TB/async_fifo_if.sv \
+    $TB/async_fifo_sva.sv \
+    $TB/async_fifo_pkg.sv \
+    $TESTS/async_fifo_tests_pkg.sv \
+    $TB/top_tb.sv
 
-quit -f
+# 4. Success message
+puts "Compilation Finished Successfully"
+
+# Optional: Uncomment 'quit -f' if you want the shell to close after compiling
+# quit -f
