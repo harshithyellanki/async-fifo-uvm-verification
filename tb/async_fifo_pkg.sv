@@ -321,119 +321,231 @@ package async_fifo_pkg;
   // ----------------------------
   // Scoreboard: data integrity + ordering
   // ----------------------------
+  // class fifo_scoreboard extends uvm_component;
+  //   `uvm_component_utils(fifo_scoreboard)
+
+  //   uvm_analysis_imp #(fifo_write_obs, fifo_scoreboard) w_imp;
+  //   uvm_analysis_imp #(fifo_read_obs,  fifo_scoreboard) r_imp;
+
+  //   fifo_env_cfg cfg;
+
+  //   bit [DATA_WIDTH-1:0] exp_q[$];
+
+  //   longint unsigned writes_seen;
+  //   longint unsigned reads_seen;
+  //   longint unsigned mismatches;
+
+  //   function new(string n, uvm_component p);
+  //     super.new(n,p);
+  //     w_imp = new("w_imp", this);
+  //     r_imp = new("r_imp", this);
+  //   endfunction
+
+  //   function void build_phase(uvm_phase phase);
+  //     super.build_phase(phase);
+  //     if (!uvm_config_db#(fifo_env_cfg)::get(this,"","cfg",cfg))
+  //       `uvm_fatal("NOCFG","scoreboard missing cfg")
+  //   endfunction
+
+  //   function void write(fifo_write_obs t);
+  //     exp_q.push_back(t.data);
+  //     writes_seen++;
+  //   endfunction
+
+  //   function void write(fifo_read_obs t);
+  //     bit [DATA_WIDTH-1:0] exp;
+  //     reads_seen++;
+  //     if (exp_q.size() == 0) begin
+  //       mismatches++;
+  //       `uvm_error("SB", $sformatf("Read observed (0x%0h) but expected queue is empty!", t.data))
+  //     end else begin
+  //       exp = exp_q.pop_front();
+  //       if (t.data !== exp) begin
+  //         mismatches++;
+  //         `uvm_error("SB", $sformatf("Data mismatch: got 0x%0h exp 0x%0h", t.data, exp))
+  //       end
+  //     end
+  //   endfunction
+
+  //   function void report_phase(uvm_phase phase);
+  //     super.report_phase(phase);
+  //     `uvm_info("SB", $sformatf("Writes=%0d Reads=%0d Mismatches=%0d ExpQ_left=%0d",
+  //                               writes_seen, reads_seen, mismatches, exp_q.size()), UVM_LOW)
+  //     if (mismatches != 0) begin
+  //       `uvm_error("SB", "TEST FAILED due to mismatches")
+  //     end
+  //   endfunction
+  // endclass
+
   class fifo_scoreboard extends uvm_component;
-    `uvm_component_utils(fifo_scoreboard)
+  `uvm_component_utils(fifo_scoreboard)
 
-    uvm_analysis_imp #(fifo_write_obs, fifo_scoreboard) w_imp;
-    uvm_analysis_imp #(fifo_read_obs,  fifo_scoreboard) r_imp;
+  // Two different imps with different callback names: write_w / write_r
+  uvm_analysis_imp_w #(fifo_write_obs, fifo_scoreboard) w_imp;
+  uvm_analysis_imp_r #(fifo_read_obs,  fifo_scoreboard) r_imp;
 
-    fifo_env_cfg cfg;
+  fifo_env_cfg cfg;
+  bit [DATA_WIDTH-1:0] exp_q[$];
 
-    bit [DATA_WIDTH-1:0] exp_q[$];
+  longint unsigned writes_seen;
+  longint unsigned reads_seen;
+  longint unsigned mismatches;
 
-    longint unsigned writes_seen;
-    longint unsigned reads_seen;
-    longint unsigned mismatches;
+  function new(string n, uvm_component p);
+    super.new(n,p);
+    w_imp = new("w_imp", this);
+    r_imp = new("r_imp", this);
+  endfunction
 
-    function new(string n, uvm_component p);
-      super.new(n,p);
-      w_imp = new("w_imp", this);
-      r_imp = new("r_imp", this);
-    endfunction
+  function void build_phase(uvm_phase phase);
+    super.build_phase(phase);
+    if (!uvm_config_db#(fifo_env_cfg)::get(this,"","cfg",cfg))
+      `uvm_fatal("NOCFG","scoreboard missing cfg")
+  endfunction
 
-    function void build_phase(uvm_phase phase);
-      super.build_phase(phase);
-      if (!uvm_config_db#(fifo_env_cfg)::get(this,"","cfg",cfg))
-        `uvm_fatal("NOCFG","scoreboard missing cfg")
-    endfunction
+  // Called for write-side observed ACCEPTED writes
+  function void write_w(fifo_write_obs t);
+    exp_q.push_back(t.data);
+    writes_seen++;
+  endfunction
 
-    function void write(fifo_write_obs t);
-      exp_q.push_back(t.data);
-      writes_seen++;
-    endfunction
+  // Called for read-side observed ACCEPTED reads
+  function void write_r(fifo_read_obs t);
+    bit [DATA_WIDTH-1:0] exp;
+    reads_seen++;
 
-    function void write(fifo_read_obs t);
-      bit [DATA_WIDTH-1:0] exp;
-      reads_seen++;
-      if (exp_q.size() == 0) begin
+    if (exp_q.size() == 0) begin
+      mismatches++;
+      `uvm_error("SB", $sformatf("Read observed (0x%0h) but expected queue is empty!", t.data))
+    end else begin
+      exp = exp_q.pop_front();
+      if (t.data !== exp) begin
         mismatches++;
-        `uvm_error("SB", $sformatf("Read observed (0x%0h) but expected queue is empty!", t.data))
-      end else begin
-        exp = exp_q.pop_front();
-        if (t.data !== exp) begin
-          mismatches++;
-          `uvm_error("SB", $sformatf("Data mismatch: got 0x%0h exp 0x%0h", t.data, exp))
-        end
+        `uvm_error("SB", $sformatf("Data mismatch: got 0x%0h exp 0x%0h", t.data, exp))
       end
-    endfunction
+    end
+  endfunction
 
-    function void report_phase(uvm_phase phase);
-      super.report_phase(phase);
-      `uvm_info("SB", $sformatf("Writes=%0d Reads=%0d Mismatches=%0d ExpQ_left=%0d",
-                                writes_seen, reads_seen, mismatches, exp_q.size()), UVM_LOW)
-      if (mismatches != 0) begin
-        `uvm_error("SB", "TEST FAILED due to mismatches")
-      end
-    endfunction
-  endclass
+  function void report_phase(uvm_phase phase);
+    super.report_phase(phase);
+    `uvm_info("SB", $sformatf("Writes=%0d Reads=%0d Mismatches=%0d ExpQ_left=%0d",
+                              writes_seen, reads_seen, mismatches, exp_q.size()), UVM_LOW)
+    if (mismatches != 0) `uvm_error("SB", "TEST FAILED due to mismatches")
+  endfunction
+endclass
 
   // ----------------------------
   // Functional coverage
   // ----------------------------
-  class fifo_coverage extends uvm_component;
-    `uvm_component_utils(fifo_coverage)
+  // class fifo_coverage extends uvm_component;
+  //   `uvm_component_utils(fifo_coverage)
 
-    uvm_analysis_imp #(fifo_write_obs, fifo_coverage) w_imp;
-    uvm_analysis_imp #(fifo_read_obs,  fifo_coverage) r_imp;
+  //   uvm_analysis_imp #(fifo_write_obs, fifo_coverage) w_imp;
+  //   uvm_analysis_imp #(fifo_read_obs,  fifo_coverage) r_imp;
 
-    virtual async_fifo_if #(DATA_WIDTH) vif;
-    int unsigned fill_level;
-    fifo_env_cfg cfg;
+  //   virtual async_fifo_if #(DATA_WIDTH) vif;
+  //   int unsigned fill_level;
+  //   fifo_env_cfg cfg;
 
-    covergroup cg_ops;
-      option.per_instance = 1;
+  //   covergroup cg_ops;
+  //     option.per_instance = 1;
 
-      cp_full   : coverpoint vif.wfull  { bins no = {0}; bins yes = {1}; }
-      cp_empty  : coverpoint vif.rempty { bins no = {0}; bins yes = {1}; }
+  //     cp_full   : coverpoint vif.wfull  { bins no = {0}; bins yes = {1}; }
+  //     cp_empty  : coverpoint vif.rempty { bins no = {0}; bins yes = {1}; }
 
-      cp_fill : coverpoint fill_level {
-        bins zero     = {0};
-        bins low      = {[1:DEPTH/4]};
-        bins mid      = {[DEPTH/4+1:3*DEPTH/4]};
-        bins high     = {[3*DEPTH/4+1:DEPTH-1]};
-        bins maxish   = {DEPTH};
-      }
+  //     cp_fill : coverpoint fill_level {
+  //       bins zero     = {0};
+  //       bins low      = {[1:DEPTH/4]};
+  //       bins mid      = {[DEPTH/4+1:3*DEPTH/4]};
+  //       bins high     = {[3*DEPTH/4+1:DEPTH-1]};
+  //       bins maxish   = {DEPTH};
+  //     }
 
-      x_fill_full  : cross cp_fill, cp_full;
-      x_fill_empty : cross cp_fill, cp_empty;
-    endgroup
+  //     x_fill_full  : cross cp_fill, cp_full;
+  //     x_fill_empty : cross cp_fill, cp_empty;
+  //   endgroup
 
-    function new(string n, uvm_component p);
-      super.new(n,p);
-      w_imp = new("w_imp", this);
-      r_imp = new("r_imp", this);
-      cg_ops = new();
-      fill_level = 0;
-    endfunction
+  //   function new(string n, uvm_component p);
+  //     super.new(n,p);
+  //     w_imp = new("w_imp", this);
+  //     r_imp = new("r_imp", this);
+  //     cg_ops = new();
+  //     fill_level = 0;
+  //   endfunction
 
-    function void build_phase(uvm_phase phase);
-      super.build_phase(phase);
-      if (!uvm_config_db#(virtual async_fifo_if#(DATA_WIDTH))::get(this,"","vif",vif))
-        `uvm_fatal("NOVIF","coverage missing vif")
-      if (!uvm_config_db#(fifo_env_cfg)::get(this,"","cfg",cfg))
-        `uvm_fatal("NOCFG","coverage missing cfg")
-    endfunction
+  //   function void build_phase(uvm_phase phase);
+  //     super.build_phase(phase);
+  //     if (!uvm_config_db#(virtual async_fifo_if#(DATA_WIDTH))::get(this,"","vif",vif))
+  //       `uvm_fatal("NOVIF","coverage missing vif")
+  //     if (!uvm_config_db#(fifo_env_cfg)::get(this,"","cfg",cfg))
+  //       `uvm_fatal("NOCFG","coverage missing cfg")
+  //   endfunction
 
-    function void write(fifo_write_obs t);
-      if (fill_level < DEPTH) fill_level++;
-      cg_ops.sample();
-    endfunction
+  //   function void write(fifo_write_obs t);
+  //     if (fill_level < DEPTH) fill_level++;
+  //     cg_ops.sample();
+  //   endfunction
 
-    function void write(fifo_read_obs t);
-      if (fill_level > 0) fill_level--;
-      cg_ops.sample();
-    endfunction
-  endclass
+  //   function void write(fifo_read_obs t);
+  //     if (fill_level > 0) fill_level--;
+  //     cg_ops.sample();
+  //   endfunction
+  // endclass
+
+class fifo_coverage extends uvm_component;
+  `uvm_component_utils(fifo_coverage)
+
+  uvm_analysis_imp_w #(fifo_write_obs, fifo_coverage) w_imp;
+  uvm_analysis_imp_r #(fifo_read_obs,  fifo_coverage) r_imp;
+
+  virtual async_fifo_if #(DATA_WIDTH) vif;
+  int unsigned fill_level;
+  fifo_env_cfg cfg;
+
+  covergroup cg_ops;
+    option.per_instance = 1;
+
+    cp_full   : coverpoint vif.wfull  { bins no = {0}; bins yes = {1}; }
+    cp_empty  : coverpoint vif.rempty { bins no = {0}; bins yes = {1}; }
+
+    cp_fill : coverpoint fill_level {
+      bins zero   = {0};
+      bins low    = {[1:DEPTH/4]};
+      bins mid    = {[DEPTH/4+1:3*DEPTH/4]};
+      bins high   = {[3*DEPTH/4+1:DEPTH-1]};
+      bins maxish = {DEPTH};
+    }
+
+    x_fill_full  : cross cp_fill, cp_full;
+    x_fill_empty : cross cp_fill, cp_empty;
+  endgroup
+
+  function new(string n, uvm_component p);
+    super.new(n,p);
+    w_imp = new("w_imp", this);
+    r_imp = new("r_imp", this);
+    cg_ops = new();
+    fill_level = 0;
+  endfunction
+
+  function void build_phase(uvm_phase phase);
+    super.build_phase(phase);
+    if (!uvm_config_db#(virtual async_fifo_if#(DATA_WIDTH))::get(this,"","vif",vif))
+      `uvm_fatal("NOVIF","coverage missing vif")
+    if (!uvm_config_db#(fifo_env_cfg)::get(this,"","cfg",cfg))
+      `uvm_fatal("NOCFG","coverage missing cfg")
+  endfunction
+
+  function void write_w(fifo_write_obs t);
+    if (fill_level < DEPTH) fill_level++;
+    cg_ops.sample();
+  endfunction
+
+  function void write_r(fifo_read_obs t);
+    if (fill_level > 0) fill_level--;
+    cg_ops.sample();
+  endfunction
+endclass
 
   // ----------------------------
   // Environment
