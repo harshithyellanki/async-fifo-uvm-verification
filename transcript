@@ -1,6 +1,21 @@
-# do scripts/questa_compile.do
+# //  Questa Sim-64
+# //  Version 2023.3 linux_x86_64 Jul 17 2023
+# //
+# //  Copyright 1991-2023 Mentor Graphics Corporation
+# //  All Rights Reserved.
+# //
+# //  QuestaSim and its associated documentation contain trade
+# //  secrets and commercial or financial information that are the property of
+# //  Mentor Graphics Corporation and are privileged, confidential,
+# //  and exempt from disclosure under the Freedom of Information Act,
+# //  5 U.S.C. Section 552. Furthermore, this information
+# //  is prohibited from disclosure under the Trade Secrets Act,
+# //  18 U.S.C. Section 1905.
+# //
+# do scripts/run_gui.do
 # 
-# 1. Setup Library
+# 1. Clean and Setup Library
+# If 'vdel' fails due to NFS locks, we try to create a fresh lib
 # if {[file exists work]} {
 #     vdel -all -lib work
 # }
@@ -19,11 +34,10 @@
 # tests
 # 
 # 3. Compile Files
-# Order is critical: RTL -> Interface -> Package -> Tests -> Top
+# CRITICAL: async_fifo_sva.sv MUST be compiled before top_tb.sv
 # vlog -sv -timescale 1ns/1ps \
 #     +incdir+$TB \
 #     +incdir+$TESTS \
-#     +define+UVM_NO_DEPRECATED \
 #     $RTL/async_fifo.sv \
 #     $TB/async_fifo_if.sv \
 #     $TB/async_fifo_sva.sv \
@@ -31,27 +45,126 @@
 #     $TESTS/async_fifo_tests_pkg.sv \
 #     $TB/top_tb.sv
 # QuestaSim-64 vlog 2023.3 Compiler 2023.07 Jul 17 2023
-# Start time: 20:50:36 on Mar 03,2026
-# vlog -sv -timescale 1ns/1ps "+incdir+tb" "+incdir+tests" "+define+UVM_NO_DEPRECATED" rtl/async_fifo.sv tb/async_fifo_if.sv tb/async_fifo_sva.sv tb/async_fifo_pkg.sv tests/async_fifo_tests_pkg.sv tb/top_tb.sv 
+# Start time: 21:13:54 on Mar 03,2026
+# vlog -reportprogress 300 -sv -timescale 1ns/1ps "+incdir+tb" "+incdir+tests" rtl/async_fifo.sv tb/async_fifo_if.sv tb/async_fifo_sva.sv tb/async_fifo_pkg.sv tests/async_fifo_tests_pkg.sv tb/top_tb.sv 
 # -- Compiling module async_fifo
 # -- Compiling interface async_fifo_if
 # -- Compiling module async_fifo_sva
 # -- Compiling package async_fifo_pkg
 # -- Importing package mtiUvm.uvm_pkg (uvm-1.1d Built-in)
-# ** Note: (vlog-2286) tb/async_fifo_pkg.sv(2510): Using implicit +incdir+/apps/reconfig/tools/siemens/questasim/2023.3/uvm-1.1d/../verilog_src/uvm-1.1d/src from import uvm_pkg
+# ** Note: (vlog-2286) tb/async_fifo_pkg.sv(2781): Using implicit +incdir+/apps/reconfig/tools/siemens/questasim/2023.3/uvm-1.1d/../verilog_src/uvm-1.1d/src from import uvm_pkg
 # -- Compiling package async_fifo_tests_pkg
 # -- Importing package async_fifo_pkg
 # -- Compiling module top_tb
 # -- Importing package async_fifo_tests_pkg
 # 
 # Top level modules:
-# 	async_fifo_sva
 # 	top_tb
-# End time: 20:50:36 on Mar 03,2026, Elapsed time: 0:00:00
+# End time: 21:13:55 on Mar 03,2026, Elapsed time: 0:00:01
 # Errors: 0, Warnings: 0
 # 
-# 4. Success message
-# puts "Compilation Finished Successfully"
+# 4. Optimization
+# +acc ensures you can see all signals and variables in the GUI wave window
+# vopt top_tb -o top_opt +acc
+# QuestaSim-64 vopt 2023.3 Compiler 2023.07 Jul 17 2023
+# ** Warning: (vopt-10587) Some optimizations are turned off because the +acc switch is in effect. This will cause your simulation to run slowly. Please use -access/-debug to maintain needed visibility.
+# Start time: 21:13:55 on Mar 03,2026
+# vopt -reportprogress 300 top_tb -o top_opt "+acc" 
 # 
-# Optional: Uncomment 'quit -f' if you want the shell to close after compiling
-# quit -f
+# Top level modules:
+# 	top_tb
+# 
+# Analyzing design...
+# -- Loading module top_tb
+# -- Importing package mtiUvm.uvm_pkg (uvm-1.1d Built-in)
+# -- Importing package async_fifo_pkg
+# -- Importing package async_fifo_tests_pkg
+# -- Loading package mtiUvm.questa_uvm_pkg
+# -- Loading interface async_fifo_if
+# -- Loading module async_fifo
+# -- Loading module async_fifo_sva
+# Optimizing 9 design-units (inlining 0/4 module instances):
+# -- Optimizing package mtiUvm.uvm_pkg (uvm-1.1d Built-in)(fast)
+# -- Optimizing package mtiUvm.questa_uvm_pkg(fast)
+# -- Optimizing package async_fifo_pkg(fast)
+# -- Optimizing package async_fifo_tests_pkg(fast)
+# -- Optimizing module async_fifo(fast)
+# -- Optimizing module async_fifo_sva(fast)
+# -- Optimizing module top_tb(fast)
+# -- Optimizing interface async_fifo_if(fast__2)
+# -- Optimizing interface async_fifo_if(fast)
+# Optimized design name is top_opt
+# End time: 21:14:00 on Mar 03,2026, Elapsed time: 0:00:05
+# Errors: 0, Warnings: 1
+# 
+# 5. Launch Simulator in GUI
+# -classdebug allows you to inspect UVM objects and classes
+# vsim -gui top_opt +UVM_TESTNAME=fifo_stress_test -classdebug
+# vsim -gui top_opt "+UVM_TESTNAME=fifo_stress_test" -classdebug 
+# Start time: 21:14:00 on Mar 03,2026
+# Loading sv_std.std
+# Loading work.async_fifo_if(fast)
+# Loading mtiUvm.uvm_pkg(fast)
+# Loading work.async_fifo_pkg(fast)
+# Loading work.async_fifo_tests_pkg(fast)
+# Loading mtiUvm.questa_uvm_pkg(fast)
+# Loading work.top_tb(fast)
+# Loading work.async_fifo_if(fast__2)
+# Loading work.async_fifo(fast)
+# Loading work.async_fifo_sva(fast)
+# Loading /apps/reconfig/tools/siemens/questasim/2023.3/uvm-1.1d/linux_x86_64/uvm_dpi.so
+# 
+# 6. Automatic GUI Setup
+# Add Interface and DUT signals to the waveform
+# add wave -group "VIF" sim:/top_tb/vif/*
+# add wave -group "DUT" sim:/top_tb/dut/*
+# 
+# Open helpful UVM debug windows
+# view classbrowser
+# Invalid window pattern: classbrowser
+# view uvm_windows
+# Invalid window pattern: uvm_windows
+# 
+# Note: Simulation is paused at 0ns. 
+# Click the 'Run All' icon or type 'run -all' in the console to start.
+run -all
+# ----------------------------------------------------------------
+# UVM-1.1d
+# (C) 2007-2013 Mentor Graphics Corporation
+# (C) 2007-2013 Cadence Design Systems, Inc.
+# (C) 2006-2013 Synopsys, Inc.
+# (C) 2011-2013 Cypress Semiconductor Corp.
+# ----------------------------------------------------------------
+# 
+#   ***********       IMPORTANT RELEASE NOTES         ************
+# 
+#   You are using a version of the UVM library that has been compiled
+#   with `UVM_NO_DEPRECATED undefined.
+#   See http://www.eda.org/svdb/view.php?id=3313 for more details.
+# 
+#   You are using a version of the UVM library that has been compiled
+#   with `UVM_OBJECT_MUST_HAVE_CONSTRUCTOR undefined.
+#   See http://www.eda.org/svdb/view.php?id=3770 for more details.
+# 
+#       (Specify +UVM_NO_RELNOTES to turn off this notice)
+# 
+# UVM_INFO verilog_src/questa_uvm_pkg-1.2/src/questa_uvm_pkg.sv(277) @ 0: reporter [Questa UVM] QUESTA_UVM-1.2.3
+# UVM_INFO verilog_src/questa_uvm_pkg-1.2/src/questa_uvm_pkg.sv(278) @ 0: reporter [Questa UVM]  questa_uvm::init(+struct)
+# UVM_INFO @ 52500: reporter [RNTST] Running test fifo_stress_test...
+# UVM_FATAL verilog_src/uvm-1.1d/src/base/uvm_root.svh(919) @ 52500: reporter [RUNPHSTIME] The run phase must start at time 0, current time is 52500. No non-zero delays are allowed before run_test(), and pre-run user defined phases may not consume simulation time before the start of the run phase.
+# 
+# --- UVM Report Summary ---
+# 
+# ** Report counts by severity
+# UVM_INFO :    3
+# UVM_WARNING :    0
+# UVM_ERROR :    0
+# UVM_FATAL :    1
+# ** Report counts by id
+# [Questa UVM]     2
+# [RNTST]     1
+# [RUNPHSTIME]     1
+# ** Note: $finish    : /apps/reconfig/tools/siemens/questasim/2023.3/linux_x86_64/../verilog_src/uvm-1.1d/src/base/uvm_report_object.svh(292)
+#    Time: 52500 ps  Iteration: 49  Region: /uvm_pkg::uvm_task_phase::execute
+# 1
+# Break in Function uvm_pkg/uvm_report_object::die at /apps/reconfig/tools/siemens/questasim/2023.3/linux_x86_64/../verilog_src/uvm-1.1d/src/base/uvm_report_object.svh line 292
