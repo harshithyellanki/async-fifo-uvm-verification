@@ -2948,18 +2948,47 @@ class fifo_scoreboard extends uvm_component;
   uvm_tlm_analysis_fifo #(fifo_read_obs)  r_fifo;
   bit [DATA_WIDTH-1:0] exp_q[$];
   function new(string n, uvm_component p); super.new(n,p); w_fifo=new("w_fifo",this); r_fifo=new("r_fifo",this); endfunction
+  // task run_phase(uvm_phase phase);
+  //   fifo_write_obs wobs; fifo_read_obs robs;
+  //   fork
+  //     forever begin w_fifo.get(wobs); exp_q.push_back(wobs.data); end
+  //     forever begin r_fifo.get(robs); 
+  //       if (exp_q.size() > 0) begin
+  //         bit [DATA_WIDTH-1:0] exp = exp_q.pop_front();
+  //         if (robs.data !== exp) `uvm_error("SB", "Mismatch")
+  //       end
+  //     end
+  //   join_none
+  // endtask
+
   task run_phase(uvm_phase phase);
-    fifo_write_obs wobs; fifo_read_obs robs;
-    fork
-      forever begin w_fifo.get(wobs); exp_q.push_back(wobs.data); end
-      forever begin r_fifo.get(robs); 
-        if (exp_q.size() > 0) begin
-          bit [DATA_WIDTH-1:0] exp = exp_q.pop_front();
-          if (robs.data !== exp) `uvm_error("SB", "Mismatch")
+  fifo_write_obs wobs; 
+  fifo_read_obs  robs;
+  
+  fork
+    // Write Loop
+    forever begin 
+      w_fifo.get(wobs); 
+      exp_q.push_back(wobs.data); 
+      `uvm_info("SB_WRITE", $sformatf("Captured Write Data: %h", wobs.data), UVM_HIGH)
+    end
+    
+    // Read Loop
+    forever begin 
+      r_fifo.get(robs); 
+      // Ensure the write side has had a delta-cycle to update the queue
+      wait(exp_q.size() > 0); 
+      begin
+        bit [DATA_WIDTH-1:0] exp = exp_q.pop_front();
+        if (robs.data !== exp) begin
+          `uvm_error("SB_MISMATCH", $sformatf("Mismatch! Got:%h Exp:%h", robs.data, exp))
+        end else begin
+          `uvm_info("SB_MATCH", $sformatf("Match: %h", robs.data), UVM_LOW)
         end
       end
-    join_none
-  endtask
+    end
+  join_none
+endtask
 endclass
 
 class fifo_env extends uvm_env;
