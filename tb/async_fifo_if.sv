@@ -1,6 +1,6 @@
 interface async_fifo_if #(
   parameter int DATA_WIDTH = 32
-);
+) ();
 
   // Write domain signals
   logic                  wclk;

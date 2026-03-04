@@ -30,25 +30,23 @@
 #   $TESTS/async_fifo_tests_pkg.sv \
 #   $TB/top_tb.sv
 # QuestaSim-64 vlog 2023.3 Compiler 2023.07 Jul 17 2023
-# Start time: 19:33:25 on Mar 03,2026
+# Start time: 19:50:31 on Mar 03,2026
 # vlog -sv -timescale 1ns/1ps "+incdir+tb" "+incdir+tests" rtl/async_fifo.sv tb/async_fifo_if.sv tb/async_fifo_sva.sv tb/async_fifo_pkg.sv tests/async_fifo_tests_pkg.sv tb/top_tb.sv 
 # -- Compiling module async_fifo
 # -- Compiling interface async_fifo_if
 # -- Compiling module async_fifo_sva
-# ** Error: (vlog-13069) tb/async_fifo_sva.sv(5): near "#": syntax error, unexpected '#', expecting ')'.
 # -- Compiling package async_fifo_pkg
 # -- Importing package mtiUvm.uvm_pkg (uvm-1.1d Built-in)
 # ** Note: (vlog-2286) tb/async_fifo_pkg.sv(3): Using implicit +incdir+/apps/reconfig/tools/siemens/questasim/2023.3/uvm-1.1d/../verilog_src/uvm-1.1d/src from import uvm_pkg
-# ** Error: tb/async_fifo_pkg.sv(355): 'write' already exists; must not be redefined as a function.
-# ** Error: tb/async_fifo_pkg.sv(432): 'write' already exists; must not be redefined as a function.
+# ** Error: (vlog-13069) tb/async_fifo_pkg.sv(384): near "#": syntax error, unexpected '#', expecting IDENTIFIER or '='.
 # -- Compiling package async_fifo_tests_pkg
-# ** Error: tests/async_fifo_tests_pkg.sv(5): (vlog-13006) Could not find the package (async_fifo_pkg).  Design read will continue, but expect a cascade of errors after this failure.  Furthermore if you experience a vopt-7 error immediately before this error then please check the package names or the library search paths on the command line.
 # ** Error: (vlog-13069) tests/async_fifo_tests_pkg.sv(7): near "fifo_base_test": syntax error, unexpected IDENTIFIER.
 # ** Error: tests/async_fifo_tests_pkg.sv(7): Error in class extension specification.
 # -- Compiling module top_tb
 # ** Error: tb/top_tb.sv(14): (vlog-13006) Could not find the package (async_fifo_pkg).  Design read will continue, but expect a cascade of errors after this failure.  Furthermore if you experience a vopt-7 error immediately before this error then please check the package names or the library search paths on the command line.
-# End time: 19:33:26 on Mar 03,2026, Elapsed time: 0:00:01
-# Errors: 7, Warnings: 0
+# ** Error: (vlog-13069) tb/async_fifo_pkg.sv(384): near "(": syntax error, unexpected '('.
+# End time: 19:50:32 on Mar 03,2026, Elapsed time: 0:00:01
+# Errors: 5, Warnings: 0
 # ** Error: /apps/reconfig/tools/siemens/questasim/2023.3/linux_x86_64/vlog failed.
 # Error in macro ./scripts/questa_compile.do line 26
 # /apps/reconfig/tools/siemens/questasim/2023.3/linux_x86_64/vlog failed.

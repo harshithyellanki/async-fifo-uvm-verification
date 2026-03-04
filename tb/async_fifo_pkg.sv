@@ -83,7 +83,8 @@ package async_fifo_pkg;
   class fifo_w_driver extends uvm_driver #(fifo_item);
     `uvm_component_utils(fifo_w_driver)
 
-    virtual async_fifo_if #(DATA_WIDTH) vif;
+    //virtual async_fifo_if #(DATA_WIDTH) vif;
+  virtual async_fifo_if
     fifo_env_cfg cfg;
 
     function new(string n, uvm_component p); super.new(n,p); endfunction
@@ -142,7 +143,8 @@ package async_fifo_pkg;
   class fifo_w_monitor extends uvm_component;
     `uvm_component_utils(fifo_w_monitor)
 
-    virtual async_fifo_if #(DATA_WIDTH) vif;
+    //virtual async_fifo_if #(DATA_WIDTH) vif;
+  virtual async_fifo_if
     uvm_analysis_port #(fifo_write_obs) ap;
     fifo_env_cfg cfg;
 
@@ -207,7 +209,8 @@ package async_fifo_pkg;
   class fifo_r_driver extends uvm_driver #(fifo_item);
     `uvm_component_utils(fifo_r_driver)
 
-    virtual async_fifo_if #(DATA_WIDTH) vif;
+   // virtual async_fifo_if #(DATA_WIDTH) vif;
+  virtual async_fifo_if
     fifo_env_cfg cfg;
 
     function new(string n, uvm_component p); super.new(n,p); endfunction
@@ -264,7 +267,8 @@ package async_fifo_pkg;
   class fifo_r_monitor extends uvm_component;
     `uvm_component_utils(fifo_r_monitor)
 
-    virtual async_fifo_if #(DATA_WIDTH) vif;
+   // virtual async_fifo_if #(DATA_WIDTH) vif;
+  virtual async_fifo_if
     uvm_analysis_port #(fifo_read_obs) ap;
     fifo_env_cfg cfg;
 
@@ -498,7 +502,7 @@ class fifo_coverage extends uvm_component;
   uvm_analysis_imp_w #(fifo_write_obs, fifo_coverage) w_imp;
   uvm_analysis_imp_r #(fifo_read_obs,  fifo_coverage) r_imp;
 
-  virtual async_fifo_if #(DATA_WIDTH) vif;
+  virtual async_fifo_if
   int unsigned fill_level;
   fifo_env_cfg cfg;
 
@@ -750,7 +754,7 @@ endclass
     fifo_vseqr   vseqr;
     fifo_env_cfg cfg;
 
-    virtual async_fifo_if #(DATA_WIDTH) vif;
+    virtual async_fifo_if vif;
 
     function new(string n, uvm_component p); super.new(n,p); endfunction
 

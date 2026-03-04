@@ -8,7 +8,7 @@ module top_tb;
   import async_fifo_pkg::*;
   import async_fifo_tests_pkg::*;
 
-  async_fifo_if #(DATA_WIDTH) vif();
+  async_fifo_if vif();
 
   async_fifo #(
     .DATA_WIDTH(DATA_WIDTH),
@@ -110,7 +110,8 @@ module top_tb;
   // UVM start
   // ----------------------------
   initial begin
-    uvm_config_db#(virtual async_fifo_if#(DATA_WIDTH))::set(null, "*", "vif", vif);
+  //  uvm_config_db#(virtual async_fifo_if#(DATA_WIDTH))::set(null, "*", "vif", vif);
+    uvm_config_db#(virtual async_fifo_if)::set(null, "*", "vif", vif);
     run_test();
   end
 
