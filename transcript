@@ -1,4 +1,4 @@
-# do scripts/run.do
+# do scripts/questa_compile.do
 # 
 # 1. Setup Library
 # if {[file exists work]} {
@@ -18,11 +18,12 @@
 # set TESTS tests
 # tests
 # 
-# 3. Compile Files in strict dependency order
-# Order: RTL -> Interface -> SVA -> Base Package -> Test Package -> Top TB
+# 3. Compile Files
+# Order is critical: RTL -> Interface -> Package -> Tests -> Top
 # vlog -sv -timescale 1ns/1ps \
 #     +incdir+$TB \
 #     +incdir+$TESTS \
+#     +define+UVM_NO_DEPRECATED \
 #     $RTL/async_fifo.sv \
 #     $TB/async_fifo_if.sv \
 #     $TB/async_fifo_sva.sv \
@@ -30,37 +31,27 @@
 #     $TESTS/async_fifo_tests_pkg.sv \
 #     $TB/top_tb.sv
 # QuestaSim-64 vlog 2023.3 Compiler 2023.07 Jul 17 2023
-# Start time: 20:39:55 on Mar 03,2026
-# vlog -sv -timescale 1ns/1ps "+incdir+tb" "+incdir+tests" rtl/async_fifo.sv tb/async_fifo_if.sv tb/async_fifo_sva.sv tb/async_fifo_pkg.sv tests/async_fifo_tests_pkg.sv tb/top_tb.sv 
+# Start time: 20:50:36 on Mar 03,2026
+# vlog -sv -timescale 1ns/1ps "+incdir+tb" "+incdir+tests" "+define+UVM_NO_DEPRECATED" rtl/async_fifo.sv tb/async_fifo_if.sv tb/async_fifo_sva.sv tb/async_fifo_pkg.sv tests/async_fifo_tests_pkg.sv tb/top_tb.sv 
 # -- Compiling module async_fifo
 # -- Compiling interface async_fifo_if
 # -- Compiling module async_fifo_sva
 # -- Compiling package async_fifo_pkg
 # -- Importing package mtiUvm.uvm_pkg (uvm-1.1d Built-in)
-# ** Note: (vlog-2286) tb/async_fifo_pkg.sv(3): Using implicit +incdir+/apps/reconfig/tools/siemens/questasim/2023.3/uvm-1.1d/../verilog_src/uvm-1.1d/src from import uvm_pkg
-# ** Error: (vlog-13069) tb/async_fifo_pkg.sv(88): near "cfg": syntax error, unexpected IDENTIFIER, expecting ';'.
-# ** Error: (vlog-13069) tb/async_fifo_pkg.sv(148): near "#": syntax error, unexpected #, expecting ';'.
-# ** Error: tb/async_fifo_pkg.sv(153): (vlog-2730) Undefined variable: 'ap'.
-# ** Error: (vlog-13069) tb/async_fifo_pkg.sv(214): near "cfg": syntax error, unexpected IDENTIFIER, expecting ';'.
-# ** Error: (vlog-13069) tb/async_fifo_pkg.sv(272): near "#": syntax error, unexpected #, expecting ';'.
-# ** Error: tb/async_fifo_pkg.sv(277): (vlog-2730) Undefined variable: 'ap'.
-# ** Error: (vlog-13069) tb/async_fifo_pkg.sv(388): near "#": syntax error, unexpected '#', expecting IDENTIFIER or '='.
+# ** Note: (vlog-2286) tb/async_fifo_pkg.sv(2510): Using implicit +incdir+/apps/reconfig/tools/siemens/questasim/2023.3/uvm-1.1d/../verilog_src/uvm-1.1d/src from import uvm_pkg
 # -- Compiling package async_fifo_tests_pkg
-# ** Error: (vlog-13069) tests/async_fifo_tests_pkg.sv(108): near "fifo_base_test": syntax error, unexpected IDENTIFIER.
-# ** Error: tests/async_fifo_tests_pkg.sv(108): Error in class extension specification.
+# -- Importing package async_fifo_pkg
 # -- Compiling module top_tb
-# ** Error: tb/top_tb.sv(342): (vlog-13006) Could not find the package (async_fifo_pkg).  Design read will continue, but expect a cascade of errors after this failure.  Furthermore if you experience a vopt-7 error immediately before this error then please check the package names or the library search paths on the command line.
-# ** Error: (vlog-13069) tb/async_fifo_pkg.sv(388): near "(": syntax error, unexpected '('.
-# End time: 20:39:56 on Mar 03,2026, Elapsed time: 0:00:01
-# Errors: 11, Warnings: 0
-# ** Error: /apps/reconfig/tools/siemens/questasim/2023.3/linux_x86_64/vlog failed.
-# Error in macro ./scripts/run.do line 26
-# /apps/reconfig/tools/siemens/questasim/2023.3/linux_x86_64/vlog failed.
-#     while executing
-# "vlog -sv -timescale 1ns/1ps \
-#     +incdir+$TB \
-#     +incdir+$TESTS \
-#     $RTL/async_fifo.sv \
-#     $TB/async_fifo_if.sv \
-#     $TB/async_fifo_sva.sv \
-#  ..."
+# -- Importing package async_fifo_tests_pkg
+# 
+# Top level modules:
+# 	async_fifo_sva
+# 	top_tb
+# End time: 20:50:36 on Mar 03,2026, Elapsed time: 0:00:00
+# Errors: 0, Warnings: 0
+# 
+# 4. Success message
+# puts "Compilation Finished Successfully"
+# 
+# Optional: Uncomment 'quit -f' if you want the shell to close after compiling
+# quit -f

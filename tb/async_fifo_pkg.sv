@@ -1,326 +1,326 @@
-package async_fifo_pkg;
-  import uvm_pkg::*;
-  `include "uvm_macros.svh"
+// package async_fifo_pkg;
+//   import uvm_pkg::*;
+//   `include "uvm_macros.svh"
 
-  // ----------------------------
-  // Parameters shared by TB
-  // ----------------------------
-  parameter int DATA_WIDTH = 32;
-  parameter int ADDR_BITS  = 4;
-  parameter int DEPTH      = (1 << ADDR_BITS);
+//   // ----------------------------
+//   // Parameters shared by TB
+//   // ----------------------------
+//   parameter int DATA_WIDTH = 32;
+//   parameter int ADDR_BITS  = 4;
+//   parameter int DEPTH      = (1 << ADDR_BITS);
 
-  // ----------------------------
-  // Transaction types
-  // ----------------------------
-  typedef enum {OP_WRITE, OP_READ, OP_IDLE} fifo_op_e;
+//   // ----------------------------
+//   // Transaction types
+//   // ----------------------------
+//   typedef enum {OP_WRITE, OP_READ, OP_IDLE} fifo_op_e;
 
-  class fifo_item extends uvm_sequence_item;
-    rand fifo_op_e             op;
-    rand bit [DATA_WIDTH-1:0]  data;
-    rand int unsigned          idle_cycles;
+//   class fifo_item extends uvm_sequence_item;
+//     rand fifo_op_e             op;
+//     rand bit [DATA_WIDTH-1:0]  data;
+//     rand int unsigned          idle_cycles;
 
-    `uvm_object_utils_begin(fifo_item)
-      `uvm_field_enum(fifo_op_e, op, UVM_ALL_ON)
-      `uvm_field_int(data, UVM_ALL_ON)
-      `uvm_field_int(idle_cycles, UVM_ALL_ON)
-    `uvm_object_utils_end
+//     `uvm_object_utils_begin(fifo_item)
+//       `uvm_field_enum(fifo_op_e, op, UVM_ALL_ON)
+//       `uvm_field_int(data, UVM_ALL_ON)
+//       `uvm_field_int(idle_cycles, UVM_ALL_ON)
+//     `uvm_object_utils_end
 
-    function new(string name="fifo_item");
-      super.new(name);
-      idle_cycles = 0;
-    endfunction
+//     function new(string name="fifo_item");
+//       super.new(name);
+//       idle_cycles = 0;
+//     endfunction
 
-    constraint c_idle_small { idle_cycles inside {[0:10]}; }
-    constraint c_op_dist { op dist {OP_WRITE:=45, OP_READ:=45, OP_IDLE:=10}; }
-  endclass
+//     constraint c_idle_small { idle_cycles inside {[0:10]}; }
+//     constraint c_op_dist { op dist {OP_WRITE:=45, OP_READ:=45, OP_IDLE:=10}; }
+//   endclass
 
-  // Observed events from monitors
-  class fifo_write_obs extends uvm_sequence_item;
-    bit [DATA_WIDTH-1:0] data;
-    `uvm_object_utils_begin(fifo_write_obs)
-      `uvm_field_int(data, UVM_ALL_ON)
-    `uvm_object_utils_end
-    function new(string name="fifo_write_obs"); super.new(name); endfunction
-  endclass
+//   // Observed events from monitors
+//   class fifo_write_obs extends uvm_sequence_item;
+//     bit [DATA_WIDTH-1:0] data;
+//     `uvm_object_utils_begin(fifo_write_obs)
+//       `uvm_field_int(data, UVM_ALL_ON)
+//     `uvm_object_utils_end
+//     function new(string name="fifo_write_obs"); super.new(name); endfunction
+//   endclass
 
-  class fifo_read_obs extends uvm_sequence_item;
-    bit [DATA_WIDTH-1:0] data;
-    `uvm_object_utils_begin(fifo_read_obs)
-      `uvm_field_int(data, UVM_ALL_ON)
-    `uvm_object_utils_end
-    function new(string name="fifo_read_obs"); super.new(name); endfunction
-  endclass
+//   class fifo_read_obs extends uvm_sequence_item;
+//     bit [DATA_WIDTH-1:0] data;
+//     `uvm_object_utils_begin(fifo_read_obs)
+//       `uvm_field_int(data, UVM_ALL_ON)
+//     `uvm_object_utils_end
+//     function new(string name="fifo_read_obs"); super.new(name); endfunction
+//   endclass
 
-  // ----------------------------
-  // Config
-  // ----------------------------
-  class fifo_env_cfg extends uvm_object;
-    `uvm_object_utils(fifo_env_cfg)
+//   // ----------------------------
+//   // Config
+//   // ----------------------------
+//   class fifo_env_cfg extends uvm_object;
+//     `uvm_object_utils(fifo_env_cfg)
 
-    // Used by virtual sequences to determine stimulus length
-    int unsigned num_ops = 2000;
+//     // Used by virtual sequences to determine stimulus length
+//     int unsigned num_ops = 2000;
 
-    // 0 => drivers will WAIT for !full / !empty before asserting enables
-    // 1 => drivers may still assert enables even when full/empty (negative testing)
-    bit allow_illegal_attempts = 0;
+//     // 0 => drivers will WAIT for !full / !empty before asserting enables
+//     // 1 => drivers may still assert enables even when full/empty (negative testing)
+//     bit allow_illegal_attempts = 0;
 
-    // (Optional knob; in this version SVA enable is controlled by plusarg in top_tb)
-    bit enable_assertions = 1;
+//     // (Optional knob; in this version SVA enable is controlled by plusarg in top_tb)
+//     bit enable_assertions = 1;
 
-    function new(string name="fifo_env_cfg");
-      super.new(name);
-    endfunction
-  endclass
+//     function new(string name="fifo_env_cfg");
+//       super.new(name);
+//     endfunction
+//   endclass
 
-  // ----------------------------
-  // Write agent: sequencer/driver/monitor
-  // ----------------------------
-  class fifo_w_sequencer extends uvm_sequencer #(fifo_item);
-    `uvm_component_utils(fifo_w_sequencer)
-    function new(string n, uvm_component p); super.new(n,p); endfunction
-  endclass
+//   // ----------------------------
+//   // Write agent: sequencer/driver/monitor
+//   // ----------------------------
+//   class fifo_w_sequencer extends uvm_sequencer #(fifo_item);
+//     `uvm_component_utils(fifo_w_sequencer)
+//     function new(string n, uvm_component p); super.new(n,p); endfunction
+//   endclass
 
-  class fifo_w_driver extends uvm_driver #(fifo_item);
-    `uvm_component_utils(fifo_w_driver)
+//   class fifo_w_driver extends uvm_driver #(fifo_item);
+//     `uvm_component_utils(fifo_w_driver)
 
-    //virtual async_fifo_if #(DATA_WIDTH) vif;
-  virtual async_fifo_if
-    fifo_env_cfg cfg;
+//     //virtual async_fifo_if #(DATA_WIDTH) vif;
+//   virtual async_fifo_if
+//     fifo_env_cfg cfg;
 
-    function new(string n, uvm_component p); super.new(n,p); endfunction
+//     function new(string n, uvm_component p); super.new(n,p); endfunction
 
-    function void build_phase(uvm_phase phase);
-      super.build_phase(phase);
-      if (!uvm_config_db#(virtual async_fifo_if#(DATA_WIDTH))::get(this,"","vif",vif))
-        `uvm_fatal("NOVIF","fifo_w_driver missing vif")
-      if (!uvm_config_db#(fifo_env_cfg)::get(this,"","cfg",cfg))
-        `uvm_fatal("NOCFG","fifo_w_driver missing cfg")
-    endfunction
+//     function void build_phase(uvm_phase phase);
+//       super.build_phase(phase);
+//       if (!uvm_config_db#(virtual async_fifo_if#(DATA_WIDTH))::get(this,"","vif",vif))
+//         `uvm_fatal("NOVIF","fifo_w_driver missing vif")
+//       if (!uvm_config_db#(fifo_env_cfg)::get(this,"","cfg",cfg))
+//         `uvm_fatal("NOCFG","fifo_w_driver missing cfg")
+//     endfunction
 
-    task run_phase(uvm_phase phase);
-      fifo_item tr;
+//     task run_phase(uvm_phase phase);
+//       fifo_item tr;
 
-      vif.cb_w.w_en   <= 1'b0;
-      vif.cb_w.wdata  <= '0;
+//       vif.cb_w.w_en   <= 1'b0;
+//       vif.cb_w.wdata  <= '0;
 
-      wait (vif.wrst_n === 1'b1);
-      repeat (2) @(vif.cb_w);
+//       wait (vif.wrst_n === 1'b1);
+//       repeat (2) @(vif.cb_w);
 
-      forever begin
-        seq_item_port.get_next_item(tr);
+//       forever begin
+//         seq_item_port.get_next_item(tr);
 
-        // Optional idle insertion
-        repeat (tr.idle_cycles) begin
-          vif.cb_w.w_en <= 1'b0;
-          @(vif.cb_w);
-        end
+//         // Optional idle insertion
+//         repeat (tr.idle_cycles) begin
+//           vif.cb_w.w_en <= 1'b0;
+//           @(vif.cb_w);
+//         end
 
-        if (tr.op == OP_WRITE) begin
-          // If illegal attempts are not allowed, wait until FIFO is not full
-          if (!cfg.allow_illegal_attempts) begin
-            while (vif.cb_w.wfull) begin
-              vif.cb_w.w_en <= 1'b0;
-              @(vif.cb_w);
-            end
-          end
+//         if (tr.op == OP_WRITE) begin
+//           // If illegal attempts are not allowed, wait until FIFO is not full
+//           if (!cfg.allow_illegal_attempts) begin
+//             while (vif.cb_w.wfull) begin
+//               vif.cb_w.w_en <= 1'b0;
+//               @(vif.cb_w);
+//             end
+//           end
 
-          vif.cb_w.wdata <= tr.data;
-          vif.cb_w.w_en  <= 1'b1;
-          @(vif.cb_w);
-          vif.cb_w.w_en  <= 1'b0;
-        end
-        else begin
-          // OP_READ/OP_IDLE do nothing on write interface
-          vif.cb_w.w_en <= 1'b0;
-          @(vif.cb_w);
-        end
+//           vif.cb_w.wdata <= tr.data;
+//           vif.cb_w.w_en  <= 1'b1;
+//           @(vif.cb_w);
+//           vif.cb_w.w_en  <= 1'b0;
+//         end
+//         else begin
+//           // OP_READ/OP_IDLE do nothing on write interface
+//           vif.cb_w.w_en <= 1'b0;
+//           @(vif.cb_w);
+//         end
 
-        seq_item_port.item_done();
-      end
-    endtask
-  endclass
+//         seq_item_port.item_done();
+//       end
+//     endtask
+//   endclass
 
-  class fifo_w_monitor extends uvm_component;
-    `uvm_component_utils(fifo_w_monitor)
+//   class fifo_w_monitor extends uvm_component;
+//     `uvm_component_utils(fifo_w_monitor)
 
-    //virtual async_fifo_if #(DATA_WIDTH) vif;
-  virtual async_fifo_if
-    uvm_analysis_port #(fifo_write_obs) ap;
-    fifo_env_cfg cfg;
+//     //virtual async_fifo_if #(DATA_WIDTH) vif;
+//   virtual async_fifo_if
+//     uvm_analysis_port #(fifo_write_obs) ap;
+//     fifo_env_cfg cfg;
 
-    function new(string n, uvm_component p);
-      super.new(n,p);
-      ap = new("ap", this);
-    endfunction
+//     function new(string n, uvm_component p);
+//       super.new(n,p);
+//       ap = new("ap", this);
+//     endfunction
 
-    function void build_phase(uvm_phase phase);
-      super.build_phase(phase);
-      if (!uvm_config_db#(virtual async_fifo_if#(DATA_WIDTH))::get(this,"","vif",vif))
-        `uvm_fatal("NOVIF","fifo_w_monitor missing vif")
-      if (!uvm_config_db#(fifo_env_cfg)::get(this,"","cfg",cfg))
-        `uvm_fatal("NOCFG","fifo_w_monitor missing cfg")
-    endfunction
+//     function void build_phase(uvm_phase phase);
+//       super.build_phase(phase);
+//       if (!uvm_config_db#(virtual async_fifo_if#(DATA_WIDTH))::get(this,"","vif",vif))
+//         `uvm_fatal("NOVIF","fifo_w_monitor missing vif")
+//       if (!uvm_config_db#(fifo_env_cfg)::get(this,"","cfg",cfg))
+//         `uvm_fatal("NOCFG","fifo_w_monitor missing cfg")
+//     endfunction
 
-    task run_phase(uvm_phase phase);
-      fifo_write_obs obs;
-      wait (vif.wrst_n === 1'b1);
-      forever begin
-        @(posedge vif.wclk);
-        // Only count ACCEPTED writes (i.e., write handshake when not full)
-        if (vif.w_en && !vif.wfull) begin
-          obs = fifo_write_obs::type_id::create("obs");
-          obs.data = vif.wdata;
-          ap.write(obs);
-        end
-      end
-    endtask
-  endclass
+//     task run_phase(uvm_phase phase);
+//       fifo_write_obs obs;
+//       wait (vif.wrst_n === 1'b1);
+//       forever begin
+//         @(posedge vif.wclk);
+//         // Only count ACCEPTED writes (i.e., write handshake when not full)
+//         if (vif.w_en && !vif.wfull) begin
+//           obs = fifo_write_obs::type_id::create("obs");
+//           obs.data = vif.wdata;
+//           ap.write(obs);
+//         end
+//       end
+//     endtask
+//   endclass
 
-  class fifo_w_agent extends uvm_component;
-    `uvm_component_utils(fifo_w_agent)
+//   class fifo_w_agent extends uvm_component;
+//     `uvm_component_utils(fifo_w_agent)
 
-    fifo_w_sequencer sqr;
-    fifo_w_driver    drv;
-    fifo_w_monitor   mon;
+//     fifo_w_sequencer sqr;
+//     fifo_w_driver    drv;
+//     fifo_w_monitor   mon;
 
-    function new(string n, uvm_component p); super.new(n,p); endfunction
+//     function new(string n, uvm_component p); super.new(n,p); endfunction
 
-    function void build_phase(uvm_phase phase);
-      super.build_phase(phase);
-      sqr = fifo_w_sequencer::type_id::create("sqr", this);
-      drv = fifo_w_driver   ::type_id::create("drv", this);
-      mon = fifo_w_monitor  ::type_id::create("mon", this);
-    endfunction
+//     function void build_phase(uvm_phase phase);
+//       super.build_phase(phase);
+//       sqr = fifo_w_sequencer::type_id::create("sqr", this);
+//       drv = fifo_w_driver   ::type_id::create("drv", this);
+//       mon = fifo_w_monitor  ::type_id::create("mon", this);
+//     endfunction
 
-    function void connect_phase(uvm_phase phase);
-      super.connect_phase(phase);
-      drv.seq_item_port.connect(sqr.seq_item_export);
-    endfunction
-  endclass
+//     function void connect_phase(uvm_phase phase);
+//       super.connect_phase(phase);
+//       drv.seq_item_port.connect(sqr.seq_item_export);
+//     endfunction
+//   endclass
 
-  // ----------------------------
-  // Read agent
-  // ----------------------------
-  class fifo_r_sequencer extends uvm_sequencer #(fifo_item);
-    `uvm_component_utils(fifo_r_sequencer)
-    function new(string n, uvm_component p); super.new(n,p); endfunction
-  endclass
+//   // ----------------------------
+//   // Read agent
+//   // ----------------------------
+//   class fifo_r_sequencer extends uvm_sequencer #(fifo_item);
+//     `uvm_component_utils(fifo_r_sequencer)
+//     function new(string n, uvm_component p); super.new(n,p); endfunction
+//   endclass
 
-  class fifo_r_driver extends uvm_driver #(fifo_item);
-    `uvm_component_utils(fifo_r_driver)
+//   class fifo_r_driver extends uvm_driver #(fifo_item);
+//     `uvm_component_utils(fifo_r_driver)
 
-   // virtual async_fifo_if #(DATA_WIDTH) vif;
-  virtual async_fifo_if
-    fifo_env_cfg cfg;
+//    // virtual async_fifo_if #(DATA_WIDTH) vif;
+//   virtual async_fifo_if
+//     fifo_env_cfg cfg;
 
-    function new(string n, uvm_component p); super.new(n,p); endfunction
+//     function new(string n, uvm_component p); super.new(n,p); endfunction
 
-    function void build_phase(uvm_phase phase);
-      super.build_phase(phase);
-      if (!uvm_config_db#(virtual async_fifo_if#(DATA_WIDTH))::get(this,"","vif",vif))
-        `uvm_fatal("NOVIF","fifo_r_driver missing vif")
-      if (!uvm_config_db#(fifo_env_cfg)::get(this,"","cfg",cfg))
-        `uvm_fatal("NOCFG","fifo_r_driver missing cfg")
-    endfunction
+//     function void build_phase(uvm_phase phase);
+//       super.build_phase(phase);
+//       if (!uvm_config_db#(virtual async_fifo_if#(DATA_WIDTH))::get(this,"","vif",vif))
+//         `uvm_fatal("NOVIF","fifo_r_driver missing vif")
+//       if (!uvm_config_db#(fifo_env_cfg)::get(this,"","cfg",cfg))
+//         `uvm_fatal("NOCFG","fifo_r_driver missing cfg")
+//     endfunction
 
-    task run_phase(uvm_phase phase);
-      fifo_item tr;
+//     task run_phase(uvm_phase phase);
+//       fifo_item tr;
 
-      vif.cb_r.r_en <= 1'b0;
+//       vif.cb_r.r_en <= 1'b0;
 
-      wait (vif.rrst_n === 1'b1);
-      repeat (2) @(vif.cb_r);
+//       wait (vif.rrst_n === 1'b1);
+//       repeat (2) @(vif.cb_r);
 
-      forever begin
-        seq_item_port.get_next_item(tr);
+//       forever begin
+//         seq_item_port.get_next_item(tr);
 
-        // Optional idle insertion
-        repeat (tr.idle_cycles) begin
-          vif.cb_r.r_en <= 1'b0;
-          @(vif.cb_r);
-        end
+//         // Optional idle insertion
+//         repeat (tr.idle_cycles) begin
+//           vif.cb_r.r_en <= 1'b0;
+//           @(vif.cb_r);
+//         end
 
-        if (tr.op == OP_READ) begin
-          // If illegal attempts are not allowed, wait until FIFO is not empty
-          if (!cfg.allow_illegal_attempts) begin
-            while (vif.cb_r.rempty) begin
-              vif.cb_r.r_en <= 1'b0;
-              @(vif.cb_r);
-            end
-          end
+//         if (tr.op == OP_READ) begin
+//           // If illegal attempts are not allowed, wait until FIFO is not empty
+//           if (!cfg.allow_illegal_attempts) begin
+//             while (vif.cb_r.rempty) begin
+//               vif.cb_r.r_en <= 1'b0;
+//               @(vif.cb_r);
+//             end
+//           end
 
-          vif.cb_r.r_en <= 1'b1;
-          @(vif.cb_r);
-          vif.cb_r.r_en <= 1'b0;
-        end
-        else begin
-          // OP_WRITE/OP_IDLE do nothing on read interface
-          vif.cb_r.r_en <= 1'b0;
-          @(vif.cb_r);
-        end
+//           vif.cb_r.r_en <= 1'b1;
+//           @(vif.cb_r);
+//           vif.cb_r.r_en <= 1'b0;
+//         end
+//         else begin
+//           // OP_WRITE/OP_IDLE do nothing on read interface
+//           vif.cb_r.r_en <= 1'b0;
+//           @(vif.cb_r);
+//         end
 
-        seq_item_port.item_done();
-      end
-    endtask
-  endclass
+//         seq_item_port.item_done();
+//       end
+//     endtask
+//   endclass
 
-  class fifo_r_monitor extends uvm_component;
-    `uvm_component_utils(fifo_r_monitor)
+//   class fifo_r_monitor extends uvm_component;
+//     `uvm_component_utils(fifo_r_monitor)
 
-   // virtual async_fifo_if #(DATA_WIDTH) vif;
-  virtual async_fifo_if
-    uvm_analysis_port #(fifo_read_obs) ap;
-    fifo_env_cfg cfg;
+//    // virtual async_fifo_if #(DATA_WIDTH) vif;
+//   virtual async_fifo_if
+//     uvm_analysis_port #(fifo_read_obs) ap;
+//     fifo_env_cfg cfg;
 
-    function new(string n, uvm_component p);
-      super.new(n,p);
-      ap = new("ap", this);
-    endfunction
+//     function new(string n, uvm_component p);
+//       super.new(n,p);
+//       ap = new("ap", this);
+//     endfunction
 
-    function void build_phase(uvm_phase phase);
-      super.build_phase(phase);
-      if (!uvm_config_db#(virtual async_fifo_if#(DATA_WIDTH))::get(this,"","vif",vif))
-        `uvm_fatal("NOVIF","fifo_r_monitor missing vif")
-      if (!uvm_config_db#(fifo_env_cfg)::get(this,"","cfg",cfg))
-        `uvm_fatal("NOCFG","fifo_r_monitor missing cfg")
-    endfunction
+//     function void build_phase(uvm_phase phase);
+//       super.build_phase(phase);
+//       if (!uvm_config_db#(virtual async_fifo_if#(DATA_WIDTH))::get(this,"","vif",vif))
+//         `uvm_fatal("NOVIF","fifo_r_monitor missing vif")
+//       if (!uvm_config_db#(fifo_env_cfg)::get(this,"","cfg",cfg))
+//         `uvm_fatal("NOCFG","fifo_r_monitor missing cfg")
+//     endfunction
 
-    task run_phase(uvm_phase phase);
-      fifo_read_obs obs;
-      wait (vif.rrst_n === 1'b1);
-      forever begin
-        @(posedge vif.rclk);
-        // Only count ACCEPTED reads (i.e., read handshake when not empty)
-        if (vif.r_en && !vif.rempty) begin
-          obs = fifo_read_obs::type_id::create("obs");
-          obs.data = vif.rdata;
-          ap.write(obs);
-        end
-      end
-    endtask
-  endclass
+//     task run_phase(uvm_phase phase);
+//       fifo_read_obs obs;
+//       wait (vif.rrst_n === 1'b1);
+//       forever begin
+//         @(posedge vif.rclk);
+//         // Only count ACCEPTED reads (i.e., read handshake when not empty)
+//         if (vif.r_en && !vif.rempty) begin
+//           obs = fifo_read_obs::type_id::create("obs");
+//           obs.data = vif.rdata;
+//           ap.write(obs);
+//         end
+//       end
+//     endtask
+//   endclass
 
-  class fifo_r_agent extends uvm_component;
-    `uvm_component_utils(fifo_r_agent)
+//   class fifo_r_agent extends uvm_component;
+//     `uvm_component_utils(fifo_r_agent)
 
-    fifo_r_sequencer sqr;
-    fifo_r_driver    drv;
-    fifo_r_monitor   mon;
+//     fifo_r_sequencer sqr;
+//     fifo_r_driver    drv;
+//     fifo_r_monitor   mon;
 
-    function new(string n, uvm_component p); super.new(n,p); endfunction
+//     function new(string n, uvm_component p); super.new(n,p); endfunction
 
-    function void build_phase(uvm_phase phase);
-      super.build_phase(phase);
-      sqr = fifo_r_sequencer::type_id::create("sqr", this);
-      drv = fifo_r_driver   ::type_id::create("drv", this);
-      mon = fifo_r_monitor  ::type_id::create("mon", this);
-    endfunction
+//     function void build_phase(uvm_phase phase);
+//       super.build_phase(phase);
+//       sqr = fifo_r_sequencer::type_id::create("sqr", this);
+//       drv = fifo_r_driver   ::type_id::create("drv", this);
+//       mon = fifo_r_monitor  ::type_id::create("mon", this);
+//     endfunction
 
-    function void connect_phase(uvm_phase phase);
-      super.connect_phase(phase);
-      drv.seq_item_port.connect(sqr.seq_item_export);
-    endfunction
-  endclass
+//     function void connect_phase(uvm_phase phase);
+//       super.connect_phase(phase);
+//       drv.seq_item_port.connect(sqr.seq_item_export);
+//     endfunction
+//   endclass
 
   // ----------------------------
   // Scoreboard: data integrity + ordering
@@ -381,62 +381,62 @@ package async_fifo_pkg;
   //   endfunction
   // endclass
 
-  class fifo_scoreboard extends uvm_component;
-  `uvm_component_utils(fifo_scoreboard)
+//   class fifo_scoreboard extends uvm_component;
+//   `uvm_component_utils(fifo_scoreboard)
 
-  // Two different imps with different callback names: write_w / write_r
-  uvm_analysis_imp_w #(fifo_write_obs, fifo_scoreboard) w_imp;
-  uvm_analysis_imp_r #(fifo_read_obs,  fifo_scoreboard) r_imp;
+//   // Two different imps with different callback names: write_w / write_r
+//   uvm_analysis_imp_w #(fifo_wexitrite_obs, fifo_scoreboard) w_imp;
+//   uvm_analysis_imp_r #(fifo_read_obs,  fifo_scoreboard) r_imp;
 
-  fifo_env_cfg cfg;
-  bit [DATA_WIDTH-1:0] exp_q[$];
+//   fifo_env_cfg cfg;
+//   bit [DATA_WIDTH-1:0] exp_q[$];
 
-  longint unsigned writes_seen;
-  longint unsigned reads_seen;
-  longint unsigned mismatches;
+//   longint unsigned writes_seen;
+//   longint unsigned reads_seen;
+//   longint unsigned mismatches;
 
-  function new(string n, uvm_component p);
-    super.new(n,p);
-    w_imp = new("w_imp", this);
-    r_imp = new("r_imp", this);
-  endfunction
+//   function new(string n, uvm_component p);
+//     super.new(n,p);
+//     w_imp = new("w_imp", this);
+//     r_imp = new("r_imp", this);
+//   endfunction
 
-  function void build_phase(uvm_phase phase);
-    super.build_phase(phase);
-    if (!uvm_config_db#(fifo_env_cfg)::get(this,"","cfg",cfg))
-      `uvm_fatal("NOCFG","scoreboard missing cfg")
-  endfunction
+//   function void build_phase(uvm_phase phase);
+//     super.build_phase(phase);
+//     if (!uvm_config_db#(fifo_env_cfg)::get(this,"","cfg",cfg))
+//       `uvm_fatal("NOCFG","scoreboard missing cfg")
+//   endfunction
 
-  // Called for write-side observed ACCEPTED writes
-  function void write_w(fifo_write_obs t);
-    exp_q.push_back(t.data);
-    writes_seen++;
-  endfunction
+//   // Called for write-side observed ACCEPTED writes
+//   function void write_w(fifo_write_obs t);
+//     exp_q.push_back(t.data);
+//     writes_seen++;
+//   endfunction
 
-  // Called for read-side observed ACCEPTED reads
-  function void write_r(fifo_read_obs t);
-    bit [DATA_WIDTH-1:0] exp;
-    reads_seen++;
+//   // Called for read-side observed ACCEPTED reads
+//   function void write_r(fifo_read_obs t);
+//     bit [DATA_WIDTH-1:0] exp;
+//     reads_seen++;
 
-    if (exp_q.size() == 0) begin
-      mismatches++;
-      `uvm_error("SB", $sformatf("Read observed (0x%0h) but expected queue is empty!", t.data))
-    end else begin
-      exp = exp_q.pop_front();
-      if (t.data !== exp) begin
-        mismatches++;
-        `uvm_error("SB", $sformatf("Data mismatch: got 0x%0h exp 0x%0h", t.data, exp))
-      end
-    end
-  endfunction
+//     if (exp_q.size() == 0) begin
+//       mismatches++;
+//       `uvm_error("SB", $sformatf("Read observed (0x%0h) but expected queue is empty!", t.data))
+//     end else begin
+//       exp = exp_q.pop_front();
+//       if (t.data !== exp) begin
+//         mismatches++;
+//         `uvm_error("SB", $sformatf("Data mismatch: got 0x%0h exp 0x%0h", t.data, exp))
+//       end
+//     end
+//   endfunction
 
-  function void report_phase(uvm_phase phase);
-    super.report_phase(phase);
-    `uvm_info("SB", $sformatf("Writes=%0d Reads=%0d Mismatches=%0d ExpQ_left=%0d",
-                              writes_seen, reads_seen, mismatches, exp_q.size()), UVM_LOW)
-    if (mismatches != 0) `uvm_error("SB", "TEST FAILED due to mismatches")
-  endfunction
-endclass
+//   function void report_phase(uvm_phase phase);
+//     super.report_phase(phase);
+//     `uvm_info("SB", $sformatf("Writes=%0d Reads=%0d Mismatches=%0d ExpQ_left=%0d",
+//                               writes_seen, reads_seen, mismatches, exp_q.size()), UVM_LOW)
+//     if (mismatches != 0) `uvm_error("SB", "TEST FAILED due to mismatches")
+//   endfunction
+// endclass
 
   // ----------------------------
   // Functional coverage
