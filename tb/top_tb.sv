@@ -535,7 +535,6 @@
 
 // endmodule
 
-
 `timescale 1ns/1ps
 
 module top_tb;
@@ -567,7 +566,7 @@ module top_tb;
     .rempty (vif.rempty)
   );
 
-  // 3. SVA Instantiation (ENABLE_SVA removed to fix constant expression error)
+  // 3. SVA Instantiation
   async_fifo_sva #(
     .DATA_WIDTH(DATA_WIDTH),
     .ADDR_BITS (ADDR_BITS)
@@ -592,7 +591,7 @@ module top_tb;
     forever #(RCLK_NS/2.0) vif.rclk = ~vif.rclk;
   end
 
-  // 5. Reset Task
+  // 5. Reset Task (Non-blocking fixes race conditions)
   task automatic apply_resets(int hold_w = 5, int hold_r = 5);
     vif.wrst_n <= 1'b0;
     vif.rrst_n <= 1'b0;
@@ -603,28 +602,68 @@ module top_tb;
   endtask
 
   // 6. Main UVM Execution Block
+  // initial begin
+  //   // Declarations must come before any procedural statements
+  //   automatic bit INJECT_RESETS = 0;
+    
+  //   // UVM Config
+  //   uvm_config_db#(virtual async_fifo_if)::set(null, "*", "vif", vif);
+    
+  //   // Initial known state in NBA region
+  //   vif.wrst_n <= 1'b0;
+  //   vif.rrst_n <= 1'b0;
+
+  //   // Stabilization delay (Fixes the syntax error caused by #10 outside the block)
+  //   #10;
+
+  //   // Apply main reset sequence
+  //   apply_resets();
+
+  //   void'($value$plusargs("INJECT_RESETS=%d", INJECT_RESETS));
+    
+  //   if (INJECT_RESETS) begin
+  //     fork
+  //       forever begin
+  //         automatic int gap = $urandom_range(200, 600);
+  //         repeat (gap) @(posedge vif.wclk);
+  //         apply_resets(2,2);
+  //       end
+  //     join_none
+  //   end
+
+  //   // Boot UVM
+  //   run_test();
+  // end
+
   initial begin
+    // 1. Declarations (must be at the top)
     automatic bit INJECT_RESETS = 0;
     
+    // 2. IMMEDIATE actions at time 0
     uvm_config_db#(virtual async_fifo_if)::set(null, "*", "vif", vif);
-    vif.wrst_n <= 1'b0;
-    vif.rrst_n <= 1'b0;
-
-
-    apply_resets();
-
-    void'($value$plusargs("INJECT_RESETS=%d", INJECT_RESETS));
     
-    if (INJECT_RESETS) begin
-      fork
-        forever begin
-          automatic int gap = $urandom_range(200, 600);
-          repeat (gap) @(posedge vif.wclk);
-          apply_resets(2,2);
+    
+    // 3. START THE RESET SEQUENCE IN THE BACKGROUND
+    fork
+      begin
+        vif.wrst_n <= 1'b0;
+        vif.rrst_n <= 1'b0;
+        #10;               // Now this delay is okay because it's in a fork
+        apply_resets(10, 10); 
+        
+        // Handle runtime reset injection if requested
+        void'($value$plusargs("INJECT_RESETS=%d", INJECT_RESETS));
+        if (INJECT_RESETS) begin
+          forever begin
+            automatic int gap = $urandom_range(200, 600);
+            repeat (gap) @(posedge vif.wclk);
+            apply_resets(2,2);
+          end
         end
-      join_none
-    end
+      end
+    join_none // This allows the code to proceed to run_test() at time 0
 
+    // 4. BOOT UVM AT TIME 0
     run_test();
   end
 

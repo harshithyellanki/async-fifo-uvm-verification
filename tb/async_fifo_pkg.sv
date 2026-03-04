@@ -3069,7 +3069,7 @@ class fifo_base_test extends uvm_test;
   function new(string n, uvm_component p); super.new(n,p); endfunction
   function void build_phase(uvm_phase phase);
     cfg = fifo_env_cfg::type_id::create("cfg");
-    uvm_config_db#(fifo_env_cfg)::set(this, "*", "cfg", cfg);
+    uvm_config_db#(fifo_env_cfg)::set(null, "*", "cfg", cfg);
     env = fifo_env::type_id::create("env", this);
     vseqr = fifo_vseqr::type_id::create("vseqr", this);
     if(!uvm_config_db#(virtual async_fifo_if)::get(this, "", "vif", vif)) `uvm_fatal("TEST", "No VIF")
