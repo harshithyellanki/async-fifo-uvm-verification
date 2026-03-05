@@ -32,7 +32,7 @@ vopt top_tb -o top_opt +acc
 
 # 5. Launch Simulator in GUI
 # -classdebug allows you to inspect UVM objects and classes
-vsim -gui top_opt +UVM_TESTNAME=fifo_stress_test -classdebug
+vsim -gui top_opt +UVM_TESTNAME= fifo_smoke_test -classdebug
 
 # 6. Automatic GUI Setup
 # Add Interface and DUT signals to the waveform

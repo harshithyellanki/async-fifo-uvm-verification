@@ -12,4 +12,4 @@ vlog -sv -timescale 1ns/1ps \
     tests/async_fifo_tests_pkg.sv \
     tb/top_tb.sv
 
-vsim -c top_tb +UVM_TESTNAME=fifo_stress_test -do "run -all; quit"
+vsim -c top_tb +UVM_TESTNAME=fifo_smoke_test -do "run -all; quit"

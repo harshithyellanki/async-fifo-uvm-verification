@@ -566,6 +566,32 @@ module top_tb;
     .rempty (vif.rempty)
   );
 
+
+      // ------------------------------------------------------------
+  // Debug counters (attempted vs accepted)
+  // ------------------------------------------------------------
+  int unsigned w_attempts, w_accepted;
+  int unsigned r_attempts, r_accepted;
+
+  always_ff @(posedge vif.wclk or negedge vif.wrst_n) begin
+    if (!vif.wrst_n) begin
+      w_attempts <= 0;
+      w_accepted <= 0;
+    end else begin
+      if (vif.w_en) w_attempts <= w_attempts + 1;
+      if (vif.w_en && !vif.wfull) w_accepted <= w_accepted + 1;
+    end
+  end
+
+  always_ff @(posedge vif.rclk or negedge vif.rrst_n) begin
+    if (!vif.rrst_n) begin
+      r_attempts <= 0;
+      r_accepted <= 0;
+    end else begin
+      if (vif.r_en) r_attempts <= r_attempts + 1;
+      if (vif.r_en && !vif.rempty) r_accepted <= r_accepted + 1;
+    end
+  end
   // 3. SVA Instantiation
   async_fifo_sva #(
     .DATA_WIDTH(DATA_WIDTH),
@@ -644,24 +670,41 @@ module top_tb;
     
     
     // 3. START THE RESET SEQUENCE IN THE BACKGROUND
-    fork
-      begin
-        vif.wrst_n <= 1'b0;
-        vif.rrst_n <= 1'b0;
-        #10;               // Now this delay is okay because it's in a fork
-        apply_resets(10, 10); 
-        
-        // Handle runtime reset injection if requested
-        void'($value$plusargs("INJECT_RESETS=%d", INJECT_RESETS));
-        if (INJECT_RESETS) begin
-          forever begin
-            automatic int gap = $urandom_range(200, 600);
-            repeat (gap) @(posedge vif.wclk);
-            apply_resets(2,2);
-          end
-        end
+    
+fork
+  begin
+    string testname;
+
+    // --- (A) Initial reset (one-time) ---
+    vif.wrst_n <= 1'b0;
+    vif.rrst_n <= 1'b0;
+
+    #10;                 // ok here (inside forked thread)
+    apply_resets(10, 10);
+
+    // --- (B) Decide whether to inject resets during runtime ---
+    // Default: OFF
+    INJECT_RESETS = 0;
+
+    // If user provided UVM_TESTNAME, you can auto-enable for reset test
+    if ($value$plusargs("UVM_TESTNAME=%s", testname)) begin
+      if (testname == "fifo_reset_stress_test")
+        INJECT_RESETS = 1;
+    end
+
+    // Allow explicit override from command line
+    void'($value$plusargs("INJECT_RESETS=%d", INJECT_RESETS));
+
+    // --- (C) Runtime reset injection (optional) ---
+    if (INJECT_RESETS) begin
+      forever begin
+        automatic int gap = $urandom_range(200, 600);
+        repeat (gap) @(posedge vif.wclk);
+        apply_resets(2, 2);
       end
-    join_none // This allows the code to proceed to run_test() at time 0
+    end
+  end
+join_none
 
     // 4. BOOT UVM AT TIME 0
     run_test();
