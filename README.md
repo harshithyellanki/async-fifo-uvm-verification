@@ -43,12 +43,3 @@ Example:
 vsim -c -do "do scripts/questa_run.do" +UVM_TESTNAME=fifo_stress_test +WCLK_NS=3 +RCLK_NS=11
 ```
 
-## Upload to GitHub (typical)
-```bash
-git init
-git add .
-git commit -m "Initial commit: async fifo + uvm"
-git branch -M main
-git remote add origin <YOUR_REPO_URL>
-git push -u origin main
-```
